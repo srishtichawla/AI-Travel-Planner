@@ -1,0 +1,8 @@
+.venv/
+.env
+*.db
+node_modules/
+.next/
+__pycache__/
+backend/evals/results/*
+!backend/evals/results/.gitkeep
