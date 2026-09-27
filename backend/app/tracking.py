@@ -120,7 +120,10 @@ def run_cost(rid: str | None = None) -> float:
 
 
 def check_budget():
-    if run_cost() > settings.max_run_cost_usd:
+    rid = current_run()
+    if rid is None:
+        return
+    if run_cost(rid) > settings.max_run_cost_usd:
         raise BudgetExceeded(f"run exceeded ${settings.max_run_cost_usd}")
 
 
@@ -131,6 +134,7 @@ def finish_run(rid, *, ok, total_ms, repair_rounds, first_pass_hard) -> RunMetri
               FROM calls WHERE run_id=?""", (rid,)).fetchone()
         c.execute("UPDATE runs SET ok=?,total_cost=?,total_ms=?,repair_rounds=?,first_pass_hard=? WHERE id=?",
                   (int(ok), agg["cost"], total_ms, repair_rounds, first_pass_hard, rid))
+    _run_id.set(None)
     return RunMetrics(run_id=rid, cost_usd=agg["cost"], latency_ms=total_ms, llm_calls=agg["llm"] or 0,
                       maps_calls=agg["maps"] or 0, cache_hits=agg["hits"] or 0,
                       repair_rounds=repair_rounds, first_pass_hard_violations=first_pass_hard)
