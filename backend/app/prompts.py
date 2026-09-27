@@ -32,3 +32,9 @@ def render_candidates(cands, weekdays) -> str:
         lines.append(f"{c.ref} | {c.name} | {c.category} | {c.rating or '?'}star({c.rating_count or 0}) "
                      f"| {price} | {c.lat:.4f},{c.lng:.4f} | ~{c.typical_duration_min}min | {hrs}")
     return "\n".join(lines)
+
+def repair_prompt(hard_violations) -> str:
+    lines = "\n".join(f"- [{x.code}] {x.message}" for x in hard_violations)
+    return ("Your itinerary has these problems:\n" + lines +
+            "\nFix ONLY what is needed, keep the rest unchanged, use only refs from CANDIDATES, "
+            "and call submit with the full corrected itinerary.")
