@@ -11,6 +11,8 @@ from .schemas import Candidate, Leg
 
 URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
+_client = httpx.Client(timeout=15)
+
 
 def haversine_m(a: Candidate, b: Candidate) -> float:
     R = 6371000
@@ -37,7 +39,7 @@ def leg(a: Candidate, b: Candidate) -> Leg:
         body["routingPreference"] = "TRAFFIC_UNAWARE"
     try:
         with tracking.track_maps("routes_compute"):
-            r = httpx.post(URL, json=body, timeout=15, headers={
+            r = _client.post(URL, json=body, headers={
                 "X-Goog-Api-Key": settings.google_maps_api_key,
                 "X-Goog-FieldMask": "routes.duration,routes.distanceMeters"})
             r.raise_for_status()

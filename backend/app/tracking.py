@@ -20,13 +20,21 @@ CACHE_READ_MULT, CACHE_WRITE_MULT = 0.10, 1.25
 # USD per request, estimates. VERIFY against Google Maps Platform pricing.
 MAPS_PRICES = {"places_text_search": 0.035, "routes_compute": 0.005}
 
+
 class BudgetExceeded(RuntimeError):
     ...
 
+
+@contextmanager
 def _conn():
     c = sqlite3.connect(settings.db_path)
     c.row_factory = sqlite3.Row
-    return c
+    try:
+        yield c
+        c.commit()
+    finally:
+        c.close()
+
 
 def init_db():
     with _conn() as c:
@@ -43,6 +51,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS cache(key TEXT PRIMARY KEY, value TEXT, expires REAL);
         """)
 
+
 def start_run(req, tag: str | None = None) -> str:
     init_db()
     rid = uuid.uuid4().hex[:12]
@@ -52,17 +61,21 @@ def start_run(req, tag: str | None = None) -> str:
                   (rid, time.time(), tag, req.model_dump_json()))
     return rid
 
+
 def current_run() -> str | None:
     return _run_id.get()
 
+
 def set_run(rid: str | None):
     _run_id.set(rid)
+
 
 def llm_cost(model, in_tok, out_tok, cache_read=0, cache_write=0) -> float:
     pin, pout = LLM_PRICES.get(model, (0.0, 0.0))
     return (in_tok * pin + out_tok * pout
             + cache_read * pin * CACHE_READ_MULT
             + cache_write * pin * CACHE_WRITE_MULT) / 1e6
+
 
 def _insert(**k):
     with _conn() as c:
@@ -74,14 +87,17 @@ def _insert(**k):
            k.get("cost_usd", 0.0), k.get("latency_ms", 0.0), int(k.get("cache_hit", False)),
            int(k.get("ok", True)), time.time()))
 
+
 def log_llm(*, name, model, input_tokens, output_tokens, cache_read, cache_write, latency_ms, ok):
     _insert(kind="llm", name=name, model=model, input_tokens=input_tokens,
             output_tokens=output_tokens, cache_read=cache_read, cache_write=cache_write,
             cost_usd=llm_cost(model, input_tokens, output_tokens, cache_read, cache_write),
             latency_ms=latency_ms, ok=ok)
 
+
 def log_cache_hit(kind, name):
     _insert(kind=kind, name=name, cache_hit=True)
+
 
 @contextmanager
 def track_maps(name: str):
@@ -95,15 +111,18 @@ def track_maps(name: str):
         _insert(kind="maps", name=name, cost_usd=MAPS_PRICES.get(name, 0.0),
                 latency_ms=(time.perf_counter() - t0) * 1000, ok=ok)
 
+
 def run_cost(rid: str | None = None) -> float:
     with _conn() as c:
         r = c.execute("SELECT COALESCE(SUM(cost_usd),0) s FROM calls WHERE run_id=?",
                       (rid or current_run(),)).fetchone()
     return r["s"]
 
+
 def check_budget():
     if run_cost() > settings.max_run_cost_usd:
         raise BudgetExceeded(f"run exceeded ${settings.max_run_cost_usd}")
+
 
 def finish_run(rid, *, ok, total_ms, repair_rounds, first_pass_hard) -> RunMetrics:
     with _conn() as c:

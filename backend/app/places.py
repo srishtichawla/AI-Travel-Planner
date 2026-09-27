@@ -18,6 +18,8 @@ PRICE = {"PRICE_LEVEL_FREE": 0, "PRICE_LEVEL_INEXPENSIVE": 1, "PRICE_LEVEL_MODER
 TTL_S = 3 * 24 * 3600
 DURATION = {"food": 75, "attraction": 90, "nature": 120, "nightlife": 120, "shopping": 60, "other": 60}
 
+_client = httpx.Client(timeout=15)
+
 
 def text_search(query: str, page_size: int = 15) -> list[dict]:
     key = "places:" + hashlib.sha1(f"{query}|{page_size}".encode()).hexdigest()
@@ -25,10 +27,10 @@ def text_search(query: str, page_size: int = 15) -> list[dict]:
         tracking.log_cache_hit("maps", "places_text_search")
         return hit
     with tracking.track_maps("places_text_search"):
-        r = httpx.post(URL, timeout=15,
-                       json={"textQuery": query, "pageSize": page_size, "languageCode": "en"},
-                       headers={"X-Goog-Api-Key": settings.google_maps_api_key,
-                                "X-Goog-FieldMask": FIELDS})
+        r = _client.post(URL,
+                         json={"textQuery": query, "pageSize": page_size, "languageCode": "en"},
+                         headers={"X-Goog-Api-Key": settings.google_maps_api_key,
+                                  "X-Goog-FieldMask": FIELDS})
         r.raise_for_status()
     places = r.json().get("places", [])
     cache.set(key, places, TTL_S)

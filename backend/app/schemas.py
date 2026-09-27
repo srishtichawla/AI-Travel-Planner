@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TripRequest(BaseModel):
@@ -12,6 +12,7 @@ class TripRequest(BaseModel):
     interests: list[str] = Field(default_factory=list, max_length=6)
     pace: Literal["relaxed", "balanced", "packed"] = "balanced"
 
+
 class OpenPeriod(BaseModel):
     open_day: int
     open_h: int
@@ -19,6 +20,7 @@ class OpenPeriod(BaseModel):
     close_day: int
     close_h: int
     close_m: int
+
 
 class Candidate(BaseModel):
     ref: str
@@ -35,18 +37,45 @@ class Candidate(BaseModel):
     sources: list[str] = []
     typical_duration_min: int = 60
 
+
 class PlannedStop(BaseModel):
     ref: str = Field(description="Candidate ref such as c12. MUST exist in CANDIDATES.")
     start_time: str = Field(description="24h HH:MM", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
-    duration_min: int = Field(ge=15, le=300)
+    duration_min: int = Field(ge=1, le=300)
     rationale: str = Field(max_length=200, description="Why this stop fits the traveler")
+
+    @field_validator("duration_min", mode="before")
+    @classmethod
+    def _clamp_min_duration(cls, v):
+        try:
+            v = int(v)
+        except (TypeError, ValueError):
+            return v
+        return max(v, 15)
+
 
 class PlannedDay(BaseModel):
     day: int = Field(ge=1, le=7)
     stops: list[PlannedStop]
 
+
 class PlannedItinerary(BaseModel):
     days: list[PlannedDay]
+
+    @field_validator("days", mode="before")
+    @classmethod
+    def _unwrap_and_parse_days(cls, v):
+        import json
+        if isinstance(v, str):
+            v = json.loads(v)
+        if isinstance(v, dict) and "days" not in v and len(v) == 1:
+            inner = next(iter(v.values()))
+            if isinstance(inner, dict) and "days" in inner:
+                v = inner["days"]
+            elif isinstance(inner, list):
+                v = inner
+        return v
+
 
 class Violation(BaseModel):
     code: str
@@ -55,11 +84,13 @@ class Violation(BaseModel):
     ref: str | None = None
     message: str
 
+
 class Leg(BaseModel):
     minutes: int
     meters: int
     mode: Literal["WALK", "DRIVE"]
     estimated: bool = False
+
 
 class EnrichedStop(PlannedStop):
     place_id: str
@@ -72,10 +103,12 @@ class EnrichedStop(PlannedStop):
     price_level: int | None
     leg_from_prev: Leg | None = None
 
+
 class EnrichedDay(BaseModel):
     day: int
     date: date
     stops: list[EnrichedStop]
+
 
 class RunMetrics(BaseModel):
     run_id: str
@@ -86,6 +119,7 @@ class RunMetrics(BaseModel):
     cache_hits: int
     repair_rounds: int
     first_pass_hard_violations: int
+
 
 class PlanResponse(BaseModel):
     days: list[EnrichedDay]
