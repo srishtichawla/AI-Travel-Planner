@@ -1,6 +1,8 @@
 from datetime import date
 from typing import Literal
+
 from pydantic import BaseModel, Field
+
 
 class TripRequest(BaseModel):
     destination: str = Field(min_length=2, max_length=80)

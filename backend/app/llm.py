@@ -1,8 +1,10 @@
 import time
+
 import anthropic
 from pydantic import BaseModel, ValidationError
-from .config import settings
+
 from . import tracking
+from .config import settings
 
 _client = anthropic.Anthropic(api_key=settings.anthropic_api_key, max_retries=2)
 

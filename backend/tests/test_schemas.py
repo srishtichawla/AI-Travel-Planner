@@ -1,6 +1,8 @@
 from datetime import date
-from app.schemas import TripRequest, PlannedItinerary, PlannedDay, PlannedStop
+
 from app.fixtures import lisbon_candidates
+from app.schemas import PlannedStop, TripRequest
+
 
 def test_trip_request_defaults():
     r = TripRequest(destination="Lisbon", days=2, start_date=date(2026, 11, 2))

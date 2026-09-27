@@ -1,5 +1,6 @@
 from .schemas import Candidate, OpenPeriod
 
+
 def lisbon_candidates() -> list[Candidate]:
     def hrs(open_h, close_h, days=range(7)):
         return [OpenPeriod(open_day=d, open_h=open_h, open_m=0, close_day=d, close_h=close_h, close_m=0)

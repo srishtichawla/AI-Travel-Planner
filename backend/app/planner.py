@@ -1,8 +1,10 @@
 from datetime import timedelta
+
 from .config import settings
 from .llm import call_structured
 from .prompts import SYSTEM_PLANNER, render_candidates
 from .schemas import PlannedItinerary, TripRequest
+
 
 def weekdays_for(req: TripRequest):
     names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
