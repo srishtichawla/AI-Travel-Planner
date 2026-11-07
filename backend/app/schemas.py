@@ -153,6 +153,8 @@ class EnrichedDay(BaseModel):
 class RunMetrics(BaseModel):
     run_id: str
     cost_usd: float
+    llm_cost_usd: float = 0.0
+    maps_cost_usd: float = 0.0
     latency_ms: float
     llm_calls: int
     maps_calls: int

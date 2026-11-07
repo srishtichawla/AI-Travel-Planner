@@ -130,11 +130,14 @@ def check_budget():
 def finish_run(rid, *, ok, total_ms, repair_rounds, first_pass_hard) -> RunMetrics:
     with _conn() as c:
         agg = c.execute("""SELECT COALESCE(SUM(cost_usd),0) cost,
+              COALESCE(SUM(CASE WHEN kind='llm' THEN cost_usd END),0) llm_cost,
+              COALESCE(SUM(CASE WHEN kind='maps' THEN cost_usd END),0) maps_cost,
               SUM(kind='llm') llm, SUM(kind='maps' AND cache_hit=0) maps, SUM(cache_hit) hits
               FROM calls WHERE run_id=?""", (rid,)).fetchone()
         c.execute("UPDATE runs SET ok=?,total_cost=?,total_ms=?,repair_rounds=?,first_pass_hard=? WHERE id=?",
                   (int(ok), agg["cost"], total_ms, repair_rounds, first_pass_hard, rid))
     _run_id.set(None)
-    return RunMetrics(run_id=rid, cost_usd=agg["cost"], latency_ms=total_ms, llm_calls=agg["llm"] or 0,
+    return RunMetrics(run_id=rid, cost_usd=agg["cost"], llm_cost_usd=agg["llm_cost"],
+                      maps_cost_usd=agg["maps_cost"], latency_ms=total_ms, llm_calls=agg["llm"] or 0,
                       maps_calls=agg["maps"] or 0, cache_hits=agg["hits"] or 0,
                       repair_rounds=repair_rounds, first_pass_hard_violations=first_pass_hard)

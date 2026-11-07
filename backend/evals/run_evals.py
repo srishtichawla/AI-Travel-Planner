@@ -47,6 +47,7 @@ def aggregate(rows: list[dict]) -> dict:
 
     lat_sorted = sorted(r["latency_ms"] for r in ok)
     cost_sorted = sorted(r["cost_usd"] for r in ok)
+    llm_sorted = sorted(r["llm_cost_usd"] for r in ok)
     judged = [r for r in ok if "judge" in r]
 
     out = {
@@ -56,6 +57,9 @@ def aggregate(rows: list[dict]) -> dict:
         "final_satisfaction": m("final_ok"),
         "avg_repair_rounds": m("repair_rounds"),
         "cost_mean": m("cost_usd"),
+        "llm_cost_mean": m("llm_cost_usd"),
+        "maps_cost_mean": m("maps_cost_usd"),
+        "llm_cost_p95": llm_sorted[min(len(llm_sorted) - 1, int(len(llm_sorted) * 0.95))],
         "cost_p95": cost_sorted[min(len(cost_sorted) - 1, int(len(cost_sorted) * 0.95))],
         "latency_p50_ms": lat_sorted[len(lat_sorted) // 2],
         "latency_p95_ms": lat_sorted[min(len(lat_sorted) - 1, int(len(lat_sorted) * 0.95))],
@@ -107,8 +111,9 @@ def main():
         problems = []
         if agg.get("final_satisfaction", 1) < base.get("final_satisfaction", 0) - 0.05:
             problems.append("constraint satisfaction dropped >5pts")
-        if agg.get("cost_mean", 0) > base.get("cost_mean", float("inf")) * 1.25:
-            problems.append("mean cost up >25%")
+        ck = "llm_cost_mean" if "llm_cost_mean" in base and "llm_cost_mean" in agg else "cost_mean"
+        if agg.get(ck, 0) > base.get(ck, float("inf")) * 1.25:
+            problems.append(f"mean cost ({ck}) up >25%")
         if agg.get("latency_p95_ms", 0) > base.get("latency_p95_ms", float("inf")) * 1.5:
             problems.append("p95 latency up >50%")
         if problems:

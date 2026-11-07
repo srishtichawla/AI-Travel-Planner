@@ -47,6 +47,8 @@ export type Violation = {
 export type RunMetrics = {
   run_id: string;
   cost_usd: number;
+  llm_cost_usd: number;
+  maps_cost_usd: number;
   latency_ms: number;
   llm_calls: number;
   maps_calls: number;
