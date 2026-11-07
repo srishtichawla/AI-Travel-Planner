@@ -2,6 +2,8 @@
 
 A retrieval-grounded, evaluated, cost-tracked itinerary planner built with FastAPI, Claude, and the Google Maps Platform. Every place the LLM can recommend is a real, verified location -- never hallucinated -- and every LLM/API call is logged with cost and latency.
 
+![Demo](docs/demo.png)
+
 ## Why this exists
 
 Most AI trip planner demos let an LLM invent an itinerary from memory, with no way to know whether the places it names are real, open, or reachable in the time given. This project takes a different approach: retrieve first, then let the LLM plan only over what was retrieved.
@@ -69,7 +71,7 @@ Building this surfaced several real bugs worth documenting, since diagnosing the
 
 - Backend: Python, FastAPI, Pydantic v2, Anthropic SDK, SQLite
 - Grounding: Google Places API (New), Google Routes API
-- Frontend: in progress -- Next.js, TypeScript, Google Maps JS API
+- Frontend: Next.js, TypeScript, Tailwind, Google Maps JS API
 - CI: GitHub Actions running lint, tests, and an eval regression gate
 
 ## Running it locally
@@ -91,6 +93,14 @@ Then visit http://127.0.0.1:8000/docs for the interactive API, or POST to /api/p
       "pace": "balanced"
     }
 
+Run the frontend in a second terminal:
+
+    cd frontend
+    npm install
+    npm run dev
+
+Create frontend/.env.local first, with NEXT_PUBLIC_API_URL=http://127.0.0.1:8000 and NEXT_PUBLIC_GOOGLE_MAPS_KEY set to a browser-restricted Maps key. Then open http://localhost:3000.
+
 Run the eval suite:
 
     python3 -m evals.run_evals --subset smoke
@@ -99,7 +109,6 @@ Run the eval suite:
 ## Roadmap
 
 - Raise the repair-round limit and/or improve the repair prompt specifically for long, packed itineraries
-- Next.js frontend: map view, day-by-day timeline, live cost and latency trace panel
 - Model-cascade experiment: cheap-model draft, escalate to a stronger model only when violations remain
 - Candidate-set pruning to reduce token cost without hurting satisfaction
 - Deploy to Fly.io or Render plus Vercel, with rate limiting and spend caps
