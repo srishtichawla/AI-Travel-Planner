@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class TripRequest(BaseModel):
@@ -59,22 +59,62 @@ class PlannedDay(BaseModel):
     stops: list[PlannedStop]
 
 
+def _first_json(text):
+    import json
+
+    obj, _ = json.JSONDecoder().raw_decode(text.strip())
+    return obj
+
+
+def _norm_time(t):
+    import re
+
+    if not isinstance(t, str):
+        return None
+    m = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*", t)
+    if not m:
+        return None
+    h, mi = int(m.group(1)), int(m.group(2))
+    if h > 23 or mi > 59:
+        return None
+    return f"{h:02d}:{mi:02d}"
+
+
 class PlannedItinerary(BaseModel):
     days: list[PlannedDay]
 
-    @field_validator("days", mode="before")
+    @model_validator(mode="before")
     @classmethod
-    def _unwrap_and_parse_days(cls, v):
-        import json
-        if isinstance(v, str):
-            v = json.loads(v)
-        if isinstance(v, dict) and "days" not in v and len(v) == 1:
-            inner = next(iter(v.values()))
-            if isinstance(inner, dict) and "days" in inner:
-                v = inner["days"]
-            elif isinstance(inner, list):
-                v = inner
-        return v
+    def _repair_shape(cls, data):
+        if isinstance(data, str):
+            data = _first_json(data)
+        while isinstance(data, dict) and "days" not in data and len(data) == 1:
+            data = next(iter(data.values()))
+            if isinstance(data, str):
+                data = _first_json(data)
+        if isinstance(data, list):
+            data = {"days": data}
+        if not isinstance(data, dict):
+            return data
+        days = data.get("days")
+        if isinstance(days, str):
+            days = _first_json(days)
+        if isinstance(days, list):
+            fixed = []
+            for d in days:
+                if isinstance(d, dict) and isinstance(d.get("stops"), list):
+                    stops = []
+                    for st in d["stops"]:
+                        if not isinstance(st, dict):
+                            continue
+                        t = _norm_time(st.get("start_time"))
+                        if t is None:
+                            continue
+                        stops.append({**st, "start_time": t})
+                    d = {**d, "stops": stops}
+                fixed.append(d)
+            data = {**data, "days": fixed}
+        return data
 
 
 class Violation(BaseModel):
